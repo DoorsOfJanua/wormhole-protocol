@@ -170,8 +170,9 @@ When running multiple AI windows for parallel builds:
 
 1. Each window writes `.context.md` in its project root on completion
 2. Each window pushes a wormhole message if the work produced cross-project findings
-3. The architecture window reads all outboxes + all `.context.md` files to maintain the big picture
-4. Worker windows read their own project's `.context.md` on startup, plus wormhole outbox for messages tagged to them
+3. Worker windows read their own project's `.context.md` on startup, plus wormhole outbox for messages tagged to them
+
+**Important**: `.context.md` is NOT part of wormhole pull state. It lives in project repos, not in the wormhole repo. Only windows that are explicitly pointed at a project directory should read that project's `.context.md`. A generic "pull wormhole" does not scan `.context.md` files across all projects.
 
 ## Read Protocol
 
