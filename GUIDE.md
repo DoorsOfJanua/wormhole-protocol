@@ -189,6 +189,31 @@ Wormhole still works for cross-session continuity. Push state at the end of a se
 ### Teams
 Each person gets their own outbox directory. The protocol scales the same way.
 
+## Active Sessions
+
+When running multiple windows, track who owns what in STATE.md:
+
+```markdown
+| Model | Project | Phase | Updated |
+|-------|---------|-------|---------|
+| Claude Sonnet | Frontend | Auth flow | 2026-03-24 14:00 |
+| Codex | Review queue | Frontend PR review | 2026-03-24 13:30 |
+```
+
+Claim on start, update on push, clear on done. Check before asking to avoid duplicate work. If your project is already claimed by another window, pick something unclaimed.
+
+## Backlog Tracking
+
+BACKLOG.md extracts action items from messages into one list. ACK = received, BACKLOG = completed.
+
+When you push a message with a "Next action," add a line to BACKLOG.md. When you complete it, move it to Done. When pulling, scan BACKLOG.md for items assigned to you.
+
+This prevents tasks from getting buried inside message bodies and forgotten.
+
+## Archival
+
+Messages older than 7 days, fully ACK'd, with all BACKLOG items done, move to `archive/YYYY-MM/`. Git history keeps everything. The working tree stays clean and scannable.
+
 ## Best Practices
 
 - Keep status separate from messages

@@ -214,6 +214,87 @@ When running multiple AI windows for parallel builds:
 
 Silent completion is not allowed. If the other side doesn't push a result, nobody knows what happened.
 
+## Active Sessions
+
+When running multiple AI windows in parallel, track who is working on what to prevent collision and duplicate questions.
+
+Add an Active Sessions table to `STATE.md`:
+
+```markdown
+| Model | Project | Phase | Updated |
+|-------|---------|-------|---------|
+| Claude Sonnet | Frontend | Auth flow | 2026-03-24 14:00 |
+| Claude Sonnet | Backend | API audit | 2026-03-24 14:00 |
+| Codex | Review queue | Frontend PR + Backend schema | 2026-03-24 13:30 |
+```
+
+### Rules
+
+1. **Claim on start.** When you begin work on a project, add or update your row.
+2. **Update on push.** When you push a wormhole message, update your row's Phase and timestamp.
+3. **Clear on done.** When you finish, remove your row.
+4. **Check before asking.** Before sending a question to another AI, scan the table. If another window already covers that project or already asked, don't duplicate.
+5. **Self-route with visibility.** If your intended project is already claimed, pick unclaimed work instead of creating collision.
+6. **Governance exception.** A designated governance window can see all rows but never claims one. It coordinates across projects without owning any.
+
+## Backlog (Action Item Tracking)
+
+Messages contain action items. ACKs confirm receipt, not completion. Without tracking, tasks buried in messages get lost.
+
+### BACKLOG.md
+
+A file at the repo root. Every message with a "Next action" that isn't "FYI only" gets a line item extracted here:
+
+```markdown
+## Open
+
+- [ ] [Frontend] Fix auth redirect loop — from `codex/2026-03-24-1400` — assigned: Sonnet
+- [ ] [Backend] Review schema migration plan — from `claude/2026-03-24-1300` — assigned: Codex
+
+## Done
+
+- [x] [Frontend] Add CSRF tokens — from `codex/2026-03-23-1000` — done: 2026-03-24 by Sonnet
+```
+
+### Rules
+
+1. **Extract on push.** When you push a message with a "Next action," add a line to BACKLOG.md with: project tag, description, source message, assigned to whom.
+2. **Check off on completion.** Move completed items from Open to Done with date and who did it.
+3. **Scan on pull.** When pulling wormhole, scan BACKLOG.md for items assigned to you.
+4. **One item per action.** If a message contains 3 action items, add 3 lines.
+5. **Governance window maintains.** A governance window can clean up stale items, re-assign, or flag items that have been open too long.
+
+### Project-Aware ACKs
+
+When acknowledging a message, include which project consumed it:
+
+```html
+<!-- ACK Sonnet 2026-03-24 [Frontend] -->
+```
+
+A message about both Frontend and Backend might get two ACKs from two different windows.
+
+## Archival Protocol
+
+Outbox folders grow fast. Old messages bloat git and make scanning slow.
+
+### Rules
+
+1. **After 7 days**: messages where both sides have ACK'd and all BACKLOG items from that message are marked Done get moved to `archive/YYYY-MM/`.
+2. **Git history preserves everything.** The working tree stays clean.
+3. **Never archive unACK'd messages.**
+4. **Never archive messages with open BACKLOG items.**
+5. **Governance window runs archival.**
+
+### Archive Structure
+
+```
+archive/
+  2026-03/
+    claude/
+    codex/
+```
+
 ## What Never Goes In
 
 - Raw conversation dumps
@@ -230,12 +311,14 @@ Files in `shared/decisions/` are final. Name them: `YYYY-MM-DD-topic.md`. Once w
 ```
 PROMPT.md              <- you're reading it
 STATE.md               <- current priorities, blockers, focus
+BACKLOG.md             <- open action items extracted from messages
 GUIDE.md               <- human-readable guide
 CHEATSHEET.md          <- 3-command interface
 projects/              <- one rolling status per project (overwrite)
 claude/outbox/         <- Claude writes timestamped messages
 codex/outbox/          <- Codex writes timestamped messages
 shared/decisions/      <- final conclusions, append-only
+archive/YYYY-MM/       <- old resolved messages (after 7 days + full ACK + done)
 ```
 
 ## How to Use

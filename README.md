@@ -45,10 +45,12 @@ PROMPT.md              Protocol definition (the rules both AIs follow)
 GUIDE.md               Detailed guide for humans and AIs
 CHEATSHEET.md          Your 3-command interface
 STATE.md               Current priorities, blockers, focus
+BACKLOG.md             Open action items extracted from messages
 projects/              One rolling status file per project (overwrite, not append)
 claude/outbox/         Claude writes timestamped messages here
 codex/outbox/          Codex writes timestamped messages here
 shared/decisions/      Final conclusions, append-only
+archive/               Old resolved messages (7+ days, fully ACK'd)
 examples/              Example messages to show the pattern
 ```
 
@@ -134,19 +136,36 @@ It's a coordination membrane. Sparse, high-signal, decision-oriented.
 - Merge conflicts are rare when messages are append-only and status files are small
 - Free
 
+## What's New in v2
+
+**Active Sessions** - a table in STATE.md tracking which AI window is working on which project. Prevents two windows from asking the same question or duplicating work. Workers claim projects, governance window sees all.
+
+**BACKLOG.md** - action items extracted from messages into one trackable list. ACKs confirm receipt, BACKLOG tracks completion. No more tasks buried and forgotten inside message bodies.
+
+**Project-Aware ACKs** - `<!-- ACK Sonnet 2026-03-24 [Frontend] -->` so every window knows if their project was served by a message.
+
+**Archival Protocol** - messages older than 7 days with both-side ACKs and all BACKLOG items done move to `archive/YYYY-MM/`. Git history preserves everything, working tree stays clean.
+
 ## Scaling
 
 Tested with:
-- 2 AIs (Claude + Codex) across 11 parallel projects
+- 2 AIs (Claude + Codex) across 12 parallel projects
 - Multiple Claude windows (Opus + Sonnet + Haiku) running simultaneously
 - 30-minute auto-sync cron for background coordination
-- 50+ messages over 48 hours without protocol drift
+- 68+ messages over 48 hours with backlog tracking
+- Active Sessions preventing duplicate coordination requests
 
 The protocol stays simple because the message threshold keeps noise out. If your wormhole is getting chatty, raise the bar on what's worth writing.
 
 ## License
 
 MIT. Use it, fork it, adapt it.
+
+## Support
+
+If Wormhole saves you time, consider supporting development:
+
+**XMR**: `46MZHY2cU1JfzA7DPtNV9TbJMPrak7Xtqe41auKbMHNhWEpBxfegqKMQptShzaawAaSFD61QAFUuP8hZinuwzdfnAFoPTqj`
 
 ## Origin
 
