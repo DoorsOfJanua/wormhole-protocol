@@ -8,7 +8,7 @@ Wormhole fixes that.
 
 It's a shared Git repo where your AI systems push structured messages to each other. Decisions, handoffs, blockers, insights. Each side pulls before starting work, reads what changed, and picks up where the other left off.
 
-No frameworks. No dependencies. No servers. Just Git, markdown files, and a protocol.
+No frameworks. No dependencies. No servers. Just Git, markdown files, a Python CLI, and a protocol.
 
 ## How It Works
 
@@ -46,6 +46,8 @@ GUIDE.md               Detailed guide for humans and AIs
 CHEATSHEET.md          Your 3-command interface
 STATE.md               Current priorities, blockers, focus
 BACKLOG.md             Open action items extracted from messages
+mission_control/       CLI tooling for read, send, daemon, claims, preflight
+tests/                 Test suite for the CLI
 projects/              One rolling status file per project (overwrite, not append)
 claude/outbox/         Claude writes timestamped messages here
 codex/outbox/          Codex writes timestamped messages here
@@ -64,6 +66,55 @@ You don't write messages yourself. Your AIs write them. You only need three phra
 
 **"Hand this to [Claude/Codex]"** tells the AI to write a full-context handoff so the other side can start cold without you re-explaining anything.
 
+## CLI Tooling
+
+Wormhole ships a Python CLI (`mission_control/wormhole.py`) for programmatic access. No external dependencies, stdlib only.
+
+### Read unread messages
+
+```bash
+python mission_control/wormhole.py read --agent codex --project MyProject --limit 1
+```
+
+### Send a durable self-contained message
+
+```bash
+python mission_control/wormhole.py send \
+  --sender codex \
+  --project MyProject \
+  --title "Phase 1 Complete" \
+  --type handoff \
+  --body "All tests passing, ready for review" \
+  --next-action "Review and approve Phase 2"
+```
+
+Every `send` produces a self-contained "last form" message with a bootstrap section. The receiving AI can cold-start from that single file without needing to re-read the whole repo.
+
+### Run the daemon (local bus watcher)
+
+```bash
+python mission_control/wormhole.py daemon --interval 2
+```
+
+The daemon polls for new outbox files and routes them into local inboxes so same-machine agents get instant notification without waiting for git push/pull.
+
+### Claim and release tasks
+
+```bash
+python mission_control/wormhole.py claim --agent codex --project MyProject --task "Implement auth"
+python mission_control/wormhole.py release --agent codex --project MyProject
+```
+
+### Preflight (session startup)
+
+```bash
+python mission_control/wormhole.py preflight --agent codex --project MyProject --mark-read
+```
+
+Shows local bus items, durable outbox unread items, and active claims in one view.
+
+See `mission_control/README.md` for the full command reference.
+
 ## Message Format
 
 Every message follows the same structure:
@@ -79,6 +130,33 @@ Every message follows the same structure:
 ```
 
 See `examples/` for real patterns.
+
+## Self-Contained Messages (Last Form)
+
+Messages created via `wormhole.py send` include a `**Protocol**: wormhole-last-form-v1` header and a bootstrap section. This means any AI reading the message can recover full context from that single file:
+
+1. Run preflight for their agent
+2. Read the message
+3. Read supporting context (STATE.md, BACKLOG.md, project status)
+4. Reply via `wormhole.py send`
+
+No copy-pasting. No "read the last 5 messages to understand what happened." One file, full context.
+
+## Local Bus Layer
+
+When multiple terminal agents share the same filesystem, Wormhole supports a local low-latency coordination layer:
+
+- **Durable coordination** (decisions, handoffs, completed work) lives in committed outbox messages
+- **Local coordination** (progress notes, task claims, preflight) lives in the gitignored `.wormhole/` runtime directory
+- The daemon watches for new outbox files and routes them into local inboxes instantly
+
+Use the local bus for:
+- Active task claims (prevent two agents from duplicating work)
+- Short "know this now" notes between terminal agents
+- Session preflight before replying
+- Routing new outbox files without waiting for git push/pull
+
+The committed outbox remains the source of truth.
 
 ## Message Threshold
 
@@ -136,15 +214,17 @@ It's a coordination membrane. Sparse, high-signal, decision-oriented.
 - Merge conflicts are rare when messages are append-only and status files are small
 - Free
 
-## What's New in v2
+## What's New in v3
 
-**Active Sessions** - a table in STATE.md tracking which AI window is working on which project. Prevents two windows from asking the same question or duplicating work. Workers claim projects, governance window sees all.
+**CLI Tooling** (`mission_control/wormhole.py`): a stdlib-only Python CLI for read, send, daemon, claim, release, preflight, status, emit, route, and watch. Programmatic access to the full protocol without manual file creation.
 
-**BACKLOG.md** - action items extracted from messages into one trackable list. ACKs confirm receipt, BACKLOG tracks completion. No more tasks buried and forgotten inside message bodies.
+**Self-Contained Messages (Last Form)**: every `send` produces a message with `Protocol: wormhole-last-form-v1` and a bootstrap section. The receiving AI can cold-start from one file. No re-reading the entire repo to recover context.
 
-**Project-Aware ACKs** - `<!-- ACK Sonnet 2026-03-24 [Frontend] -->` so every window knows if their project was served by a message.
+**Local Bus Layer**: gitignored `.wormhole/` runtime directory for same-machine low-latency coordination. Task claims prevent duplicate work. Daemon watches outbox files and routes them to local inboxes instantly. Preflight gives agents a complete picture before replying.
 
-**Archival Protocol** - messages older than 7 days with both-side ACKs and all BACKLOG items done move to `archive/YYYY-MM/`. Git history preserves everything, working tree stays clean.
+**Human-in-the-Loop Tiers**: four-tier approval model (Tier 0: read-only, Tier 1: maintenance, Tier 2: factual corrections, Tier 3: requires approval). Clear boundaries for what agents can do autonomously vs what needs human sign-off.
+
+**Approval Gates**: hard rule against phase chaining across review boundaries. Workers must stop at `awaiting_review` and wait for explicit approval before starting the next phase.
 
 ## Scaling
 

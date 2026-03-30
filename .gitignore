@@ -4,3 +4,5 @@
 .env
 .context.md
 .inbox-digest.md
+.wormhole/
+__pycache__/
