@@ -10,6 +10,22 @@ Wormhole removes that.
 
 Claude and Codex keep their own project repos. Wormhole is the shared membrane between them.
 
+## Public vs Private
+
+This live Wormhole repo is a private working repo.
+
+If you want a public/open-source Wormhole project, do not publish this repo directly. Create a separate sanitized public repo or export that contains only generic protocol material.
+
+Private working content such as:
+- outboxes
+- project status files
+- backlog/state
+- personal names
+- local paths
+- internal examples
+
+must stay out of the public release unless sanitized first.
+
 ## What Wormhole Is
 
 Wormhole is not:
@@ -162,9 +178,9 @@ This is a real Codex message already used in Wormhole:
 **Type**: handoff
 **Body**: I pulled the live Wormhole repo, read PROMPT.md and STATE.md, and reviewed the current rolling project snapshots. The protocol now matches the tightened pattern: fixed message fields, rolling status files, message-worthy threshold, and ACK comments on the original message. I also saved the same protocol and rationale into the Life OS vault so the pattern exists in durable docs, not only in the repo. This is the first live Codex outbox test.
 **Next action**: FYI only. If received, append an ACK comment to this file.
-**Workspace**: ~/Documents/my-vault
+**Workspace**: ~/path/to/personal-workspace
 **Urgency**: normal
-**Links**: ~/Documents/my-vault/knowledge/Cross-AI Wormhole Repo Pattern.md
+**Links**: ~/path/to/personal-workspace/knowledge/Cross-AI Wormhole Repo Pattern.md
 **Confidence**: high
 
 <!-- ACK Claude (Opus) 2026-03-22 -->
@@ -194,6 +210,8 @@ Terminal shortcuts for the same flow:
 - `wormhole read --agent codex --project Wormhole --limit 1`
 - `wormhole send --sender codex --project Wormhole --title "Handoff" --type handoff --body "What changed" --next-action "What the human should approve"`
 - `wormhole daemon`
+- `python mission_control/wormhole.py status`
+- `python mission_control/wormhole.py health --strict`
 
 ## Same-Machine Bus
 
@@ -205,6 +223,8 @@ python mission_control/wormhole.py preflight --agent codex --project Wormhole --
 python mission_control/wormhole.py claim --agent codex --project Wormhole --task "Implement claim routing"
 python mission_control/wormhole.py emit --sender codex --project Wormhole --kind blocker --summary "Need Claude to review prompt wording"
 python mission_control/wormhole.py release --agent codex --project Wormhole
+python mission_control/wormhole.py status
+python mission_control/wormhole.py health --strict --max-local 0 --max-durable 0
 ```
 
 For self-contained durable handoffs, use:
@@ -217,6 +237,44 @@ python mission_control/wormhole.py read --agent codex --project Wormhole --limit
 Rule of thumb:
 - local bus = low-latency same-machine notes and claims
 - outbox = durable handoff that should survive git history
+
+## Operator Health
+
+Wormhole is only useful if you can inspect it quickly.
+
+Use:
+
+```bash
+python mission_control/wormhole.py status
+```
+
+to see:
+- runtime health
+- stale claims
+- unread local bus counts
+- unread durable inbox counts
+- recent events
+
+Use:
+
+```bash
+python mission_control/wormhole.py health --strict --max-local 0 --max-durable 0
+```
+
+when you want a machine-checkable verdict.
+
+This exits nonzero in strict mode if:
+- the route index is not bootstrapped
+- stale claims exist and are not allowed
+- unread local backlog exceeds your threshold
+- unread durable backlog exceeds your threshold
+
+Use JSON output when wiring it into scripts:
+
+```bash
+python mission_control/wormhole.py status --json
+python mission_control/wormhole.py health --json
+```
 
 ## Setup
 
@@ -257,7 +315,7 @@ Rule of thumb:
 - push a completion message
 - set `Approval State` to `awaiting_review`
 - stop
-- wait for explicit human approval before starting the next phase
+- wait for the human's explicit approval before starting the next phase
 
 ### When reading a pure FYI
 - append an ACK comment
@@ -265,7 +323,7 @@ Rule of thumb:
 
 ## Human-in-the-Loop
 
-The human is the architect. Both AIs are advisors and executors, but only after approval.
+the human is the architect. Both AIs are advisors and executors, but only after approval.
 
 When you pull Wormhole and find unread messages:
 
@@ -274,7 +332,7 @@ When you pull Wormhole and find unread messages:
 3. **Suggest, don't execute.** Present options. Wait for approval.
 4. **FYI messages can be ACK'd after you summarize them.** Do not let ACK replace the summary.
 
-The auto-sync cron generates an inbox digest every 30 minutes. It notifies the human but does not spawn AIs to auto-execute. The human reviews and decides.
+The auto-sync cron generates an inbox digest every 30 minutes. It notifies the human but does not spawn AIs to auto-execute. the human reviews and decides.
 
 ## Approval Gates
 
@@ -283,7 +341,7 @@ This is the missing discipline when work spans multiple phases.
 Rules:
 - a phase completion message is a request for review, not permission to continue
 - after finishing a phase, set the project status to `awaiting_review` and stop
-- the next phase starts only after an explicit human approval is recorded
+- the next phase starts only after an explicit the human approval is recorded
 - if review finds issues, the project goes to `hold` or `blocked`
 - no worker window may say "Phase 2 complete, starting Phase 3" unless the human already approved that exact transition
 
@@ -299,7 +357,7 @@ Wormhole has two pull modes:
 - **Governance pull**: read across projects, coordinate broadly
 - **Worker pull**: stay inside one claimed project
 
-If a window was opened for a specific project, it should behave as a worker pull by default.
+If a window was opened for DoH, Music Engine, MicroBlooming, or another specific project, it should behave as a worker pull by default.
 
 That means:
 - read local `.context.md` for that project first

@@ -25,6 +25,26 @@ Use the local bus for:
 
 Do not use it as a replacement for committed handoffs.
 
+## Open-Source Boundary
+
+The live `wormhole` repo is a private operational repo.
+
+Do not treat it as open-source-safe by default.
+
+If a public Wormhole release is needed, create it from a separate sanitized export or separate public repo, not from this working repo directly.
+
+Private working content such as:
+- `projects/**`
+- `claude/outbox/**`
+- `codex/outbox/**`
+- `BACKLOG.md`
+- `STATE.md`
+- local paths
+- real names
+- private project examples
+
+stays private unless explicitly sanitized for public use.
+
 ## Message Template
 
 Every outbox message uses these fixed fields:
@@ -126,7 +146,7 @@ Only create a new outbox message if the acknowledgment comes with new informatio
 
 ## Human-in-the-Loop Rule
 
-**The human approves everything.** Neither AI acts autonomously on tasks from the other side.
+**the human approves everything.** Neither AI acts autonomously on tasks from the other side.
 
 When you pull Wormhole and find unread messages, you MUST:
 
@@ -172,7 +192,7 @@ Human-in-the-loop means:
 - self-reported completion is never approval
 - a worker may not start Phase N+1 just because it believes Phase N is done
 - after a phase or deliverable batch completes, the worker must stop, push results, set the project `Approval State` to `awaiting_review`, and wait
-- the next phase begins only after an explicit approval message from the human, or a Wormhole message that clearly records human approval
+- the next phase begins only after an explicit approval message from the human, or a Wormhole message that clearly records the human's approval
 - if review finds issues, set `Approval State` to `hold` or `blocked`, not `executing`
 
 **Hard rule**: no phase chaining across review boundaries
@@ -259,7 +279,7 @@ python mission_control/wormhole.py release --agent codex --project Wormhole
 **Next action**: Review diff and approve merge. Run `git diff main` to see changes.
 ```
 
-This is mandatory. Silent completion is not allowed. The human reviews via their phone or another window. If Codex doesn't push a result, they can't see what happened.
+This is mandatory. Silent completion is not allowed. the human reviews via Claude on his phone. If Codex doesn't push a result, the human can't see what happened.
 Completion messages create a review checkpoint. They do not authorize the next phase.
 
 ## Multi-Window Coordination (Claude-to-Claude)
@@ -298,7 +318,7 @@ Project scope and phase scope are both hard boundaries.
 ### Two Channels: Local vs Cross-Project
 
 **`.context.md` (local, fast, same-project)**
-- Lives in the project root (e.g. `~/projects/my-project/.context.md`)
+- Lives in the project root (e.g. `~/path/to/example`)
 - For state that only matters to the next window working on the SAME project
 - "Phase 1 done, these files built, this is next"
 - Read by the next Claude window that opens in that directory
@@ -311,6 +331,16 @@ Project scope and phase scope are both hard boundaries.
 - Read by any AI that pulls wormhole
 
 **Rule**: if the information only matters within the same project directory, use `.context.md`. If it matters across projects or across AI systems, use wormhole outbox.
+
+### Codex Daily Context Mirror
+
+Codex must mirror high-signal DoH governance edits into Claude's daily context log so the human sees them on startup.
+
+- When a Codex window edits the active DoH governance status file in `~/path/to/example*-governance-status.md` (current file: `~/path/to/example`), it must also append one line to `~/.claude/context/YYYY-MM-DD.md`.
+- Use the local calendar date for the filename. Create the daily file if it does not exist yet.
+- Keep the entry to one factual bullet in this format:
+  - `- HH:MM Codex: Updated DoH governance status (<short summary>).`
+- Do this even if the same update is also captured in wormhole, `.context.md`, or a project handoff file.
 
 ### Parallel Build Protocol
 
@@ -467,22 +497,6 @@ Examples of correct filenames:
 
 HHMM is local time (WET/WEST, Portugal). No seconds. No T separator. No Z suffix.
 
-## Deliverable Storage
-
-Wormhole is for coordination messages, not file storage. Deliverables live in their canonical locations. Wormhole messages point to them.
-
-**Where content goes:**
-
-Each project has a canonical location (its own repo, vault directory, etc). Map your projects in a table here or in a separate config file. Example:
-
-| Content type | Canonical location |
-|---|---|
-| Project code | `~/projects/<project-name>/` |
-| Notes/docs | `~/Documents/<vault>/` |
-| Specs | `~/projects/wormhole/projects/<project>/` |
-
-When you complete a deliverable, write it to the correct canonical location. Then push a wormhole message with the file path so the other AI can find it.
-
 ## What Never Goes In
 
 - Raw conversation dumps
@@ -510,10 +524,10 @@ archive/YYYY-MM/       <- old messages moved here after 7 days + full ACK + done
 
 ## Codex Startup Prompt
 
-Every time you open a Codex session, paste this FIRST before any task:
+Every time the human opens a Codex session, paste this FIRST before any task:
 
 ```
-Pull <your-wormhole-path> and read these in order:
+Pull ~/path/to/example and read these in order:
 1. STATE.md (current priorities and active sessions)
 2. claude/outbox/ (newest file first, scan for unACK'd messages)
 3. BACKLOG.md (your open items)
@@ -530,13 +544,13 @@ Write your response to codex/outbox/YYYY-MM-DD-HHMM-topic.md, commit and push.
 
 ### Why This Matters
 
-Codex has no persistent memory. Every session starts fresh. Without this prompt, it guesses context from whatever files it can find. With it, it reads the coordination state first and knows exactly what happened and what's expected.
+Codex has no persistent memory. Every session starts fresh. Without this prompt, she guesses context from whatever files she can find. With it, she reads the coordination state first and knows exactly what happened and what's expected.
 
 ### Tips for Better Codex Results
 
 1. **Point to files, not concepts.** "Audit `public/index.html`" not "review the app."
-2. **Ask numbered questions.** It answers what you ask, nothing more.
-3. **Tell it where to write.** "Write findings to `codex/outbox/2026-03-28-audit.md`"
+2. **Ask numbered questions.** She answers what you ask, nothing more.
+3. **Tell her where to write.** "Write findings to `codex/outbox/2026-03-28-charlieos-audit.md`"
 4. **Be specific about what to check.** "Check auth, input validation, error handling" not "is it good?"
 5. **One task per session.** Codex works best with focused, concrete assignments.
 
@@ -546,18 +560,3 @@ Codex has no persistent memory. Every session starts fresh. Without this prompt,
 **Codex**: after completing work or finding an insight that passes the threshold, write to `codex/outbox/YYYY-MM-DD-HHMM-topic.md` and push.
 **Either side**: pull before starting work. Read the other's outbox. Read STATE.md. Read relevant project status files.
 
-## Projects
-
-Add one file per active project in `projects/`:
-
-```markdown
-# [Project Name]
-**Objective**: one-line goal
-**Current Status**: what is happening now
-**Approval State**: proposed | awaiting_review | approved | executing | hold | blocked
-**Current Blocker**: what is stuck, or none
-**Last Meaningful Change**: the last thing that moved the needle
-**Next Critical Move**: the most important next step
-**Last Updated By**: Claude (Model) | Codex
-**Last Updated At**: YYYY-MM-DD HH:MM
-```
